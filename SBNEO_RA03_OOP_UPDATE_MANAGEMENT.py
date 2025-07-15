@@ -1,5 +1,3 @@
-# Auto-generated Python procedure for SBNEO_RA03_OOP_UPDATE_MANAGEMENT
-
 def main():
     initialise_procedure()
     set_variables()
@@ -37,163 +35,99 @@ def main():
 if __name__ == '__main__':
     main()
 
+
 def initialise_procedure():
-    # No description
-    print('Running step: INITIALISE_PROCEDURE')
-    pass
+    print("✅ Running step: initialise_procedure")
 
 def set_variables():
-    # No description
-    print('Running step: SET_VARIABLES')
-    pass
+    print("✅ Running step: set_variables")
 
 def check_cel():
-    # No description
-    print('Running step: CHECK_CEL')
-    pass
+    print("✅ Running step: check_cel")
 
 def check_gnss_configuration():
-    # No description
-    print('Running step: CHECK_GNSS_CONFIGURATION')
-    pass
+    print("✅ Running step: check_gnss_configuration")
 
 def check_gnss_status():
-    # No description
-    print('Running step: CHECK_GNSS_STATUS')
-    pass
+    print("✅ Running step: check_gnss_status")
 
 def check_oop_status():
-    # No description
-    print('Running step: CHECK_OOP_STATUS')
-    pass
+    print("✅ Running step: check_oop_status")
 
 def check_obcp_is_not_running():
-    # Variable used to check if ESK OBCP is loaded in OPISS
-    print('Running step: CHECK_OBCP_IS_NOT_RUNNING')
-    pass
+    print("✅ Running step: check_obcp_is_not_running")
 
 def check_reference_date_consistency():
-    # Variable used to store current date.
-    print('Running step: CHECK_REFERENCE_DATE_CONSISTENCY')
-    pass
+    print("✅ Running step: check_reference_date_consistency")
 
 def configure_observability():
-    # Variables used to compute required bandwidth for HK packets enabling
-    print('Running step: CONFIGURE_OBSERVABILITY')
-    pass
+    print("✅ Running step: configure_observability")
 
 def check_gnss_and_oop_fdir_configuration():
-    # No description
-    print('Running step: CHECK_GNSS_AND_OOP_FDIR_CONFIGURATION')
-    pass
+    print("✅ Running step: check_gnss_and_oop_fdir_configuration")
 
 def check_obt_ut():
-    # Initiate Procedure RG01_OBT_MANAGEMENT
-    print('Running step: CHECK_OBT_UT')
-    pass
+    print("✅ Running step: check_obt_ut")
 
 def disable_oop_update_by_gnss():
-    # No description
-    print('Running step: DISABLE_OOP_UPDATE_BY_GNSS')
-    pass
+    print("✅ Running step: disable_oop_update_by_gnss")
 
 def verify_gnss_validity_flag():
-    # No description
-    print('Running step: VERIFY_GNSS_VALIDITY_FLAG')
-    pass
+    print("✅ Running step: verify_gnss_validity_flag")
 
 def configure_gnss_fdir():
-    # No description
-    print('Running step: CONFIGURE_GNSS_FDIR')
-    pass
+    print("✅ Running step: configure_gnss_fdir")
 
 def deactivate_oop_fdir():
-    # No description
-    print('Running step: DEACTIVATE_OOP_FDIR')
-    pass
+    print("✅ Running step: deactivate_oop_fdir")
 
 def authorize_oop_parameters_loading():
-    # SEND TC for authorizing the parameters loading
-    print('Running step: AUTHORIZE_OOP_PARAMETERS_LOADING')
-    pass
+    print("✅ Running step: authorize_oop_parameters_loading")
 
 def load_oop_parameters():
-    # SEND TC for initialisation OOP with external variables INIT_OOP
-    print('Running step: LOAD_OOP_PARAMETERS')
-    pass
+    print("✅ Running step: load_oop_parameters")
 
 def wait_reference_date():
-    # Variable used to store current date
-    print('Running step: WAIT_REFERENCE_DATE')
-    pass
+    print("✅ Running step: wait_reference_date")
 
 def verify_uploaded_parameters_in_open_mode():
-    # No description
-    print('Running step: VERIFY_UPLOADED_PARAMETERS_IN_OPEN_MODE')
-    pass
+    print("✅ Running step: verify_uploaded_parameters_in_open_mode")
 
 def check_current_nominal_longitude():
-    # No description
-    print('Running step: CHECK_CURRENT_NOMINAL_LONGITUDE')
-    pass
+    print("✅ Running step: check_current_nominal_longitude")
 
 def check_aj_nominal_longitude():
-    # Variable used to convert deg to rad
-    print('Running step: CHECK_AJ_NOMINAL_LONGITUDE')
-    pass
+    print("✅ Running step: check_aj_nominal_longitude")
 
 def flush_sgm_eeprom():
-    # No description
-    print('Running step: FLUSH_SGM_EEPROM')
-    pass
+    print("✅ Running step: flush_sgm_eeprom")
 
 def update_current_nominal_longitude():
-    # No description
-    print('Running step: UPDATE_CURRENT_NOMINAL_LONGITUDE')
-    pass
+    print("✅ Running step: update_current_nominal_longitude")
 
 def update_aj_nominal_longitude():
-    # No description
-    print('Running step: UPDATE_AJ_NOMINAL_LONGITUDE')
-    pass
+    print("✅ Running step: update_aj_nominal_longitude")
 
 def write_in_sgm_eeprom():
-    # No description
-    print('Running step: WRITE_IN_SGM_EEPROM')
-    pass
+    print("✅ Running step: write_in_sgm_eeprom")
 
 def update_oop_fdir_parameters():
-    # Variable used to check YLOF and FDIR OOP thresholds
-    print('Running step: UPDATE_OOP_FDIR_PARAMETERS')
-    pass
+    print("✅ Running step: update_oop_fdir_parameters")
 
 def configure_oop_with_new_parameters():
-    # VERIFY TM with external variables in PROC_initoop
-    print('Running step: CONFIGURE_OOP_WITH_NEW_PARAMETERS')
-    pass
+    print("✅ Running step: configure_oop_with_new_parameters")
 
 def configure_oop_with_current_parameters():
-    # OOP_LOAD_MEAN_ANO is not checked because not updated by OBSW (data not used).
-    print('Running step: CONFIGURE_OOP_WITH_CURRENT_PARAMETERS')
-    pass
+    print("✅ Running step: configure_oop_with_current_parameters")
 
 def enable_update_by_gnss():
-    # No description
-    print('Running step: ENABLE_UPDATE_BY_GNSS')
-    pass
+    print("✅ Running step: enable_update_by_gnss")
 
 def activate_oop_fdir():
-    # Variable used to check Longitude before FDIR activation
-    print('Running step: ACTIVATE_OOP_FDIR')
-    pass
+    print("✅ Running step: activate_oop_fdir")
 
 def restore_observability():
-    # Disable packets which were disabled at procedure start.
-    print('Running step: RESTORE_OBSERVABILITY')
-    pass
+    print("✅ Running step: restore_observability")
 
 def end_of_procedure():
-    # No description
-    print('Running step: END_OF_PROCEDURE')
-    pass
-
+    print("✅ Procedure finished.")
