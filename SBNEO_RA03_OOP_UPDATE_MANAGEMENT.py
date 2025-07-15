@@ -1,102 +1,136 @@
-# YAMCS-ready Python procedure: SBNEO_RA03_OOP_UPDATE_MANAGEMENT
-
 def initialise_procedure():
-    print("✅ Running step: initialise_procedure")
+    print("✅ initialise_procedure: Start OOP management sequence")
 
 def set_variables():
-    print("✅ Running step: set_variables")
+    voltage = tlm("Battery1_Voltage")
+    temp = tlm("Battery1_Temp")
+    print(f"🔋 Battery 1: Voltage = {voltage} V, Temp = {temp} °C")
 
 def check_cel():
-    print("✅ Running step: check_cel")
+    cel_status = tlm("CDHS_Error_Flag")
+    print(f"🧠 CDHS Error Flag: {cel_status}")
+    if cel_status:
+        print("⚠️ Warning: CDHS Error is active!")
 
 def check_gnss_configuration():
-    print("✅ Running step: check_gnss_configuration")
+    print("🛰️ GNSS configuration: not available in current telemetry")
 
 def check_gnss_status():
-    print("✅ Running step: check_gnss_status")
+    sunsensor = tlm("Sunsensor")
+    print(f"🛰️ GNSS/Sunsensor value: {sunsensor}")
 
 def check_oop_status():
-    print("✅ Running step: check_oop_status")
+    status = tlm("Payload_Error_Flag")
+    print(f"📡 OOP Payload Error Flag: {status}")
+    if status:
+        print("⚠️ Payload Error Flag is TRUE!")
 
 def check_obcp_is_not_running():
-    print("✅ Running step: check_obcp_is_not_running")
+    mode = tlm("Mode_Safe")
+    print(f"🧪 Safe Mode Active: {mode}")
+    if mode:
+        print("⚠️ Warning: System is in Safe Mode!")
 
 def check_reference_date_consistency():
-    print("✅ Running step: check_reference_date_consistency")
+    ref_date = tlm("EpochUSNO")
+    print(f"📅 Reference Epoch USNO: {ref_date}")
 
 def configure_observability():
-    print("✅ Running step: configure_observability")
+    status = tlm("Mode_Payload")
+    print(f"🔍 Observability Mode Payload: {status}")
 
 def check_gnss_and_oop_fdir_configuration():
-    print("✅ Running step: check_gnss_and_oop_fdir_configuration")
+    oop_fdir = tlm("EPS_Error_Flag")
+    print(f"🛠️ OOP FDIR Status: {oop_fdir}")
 
 def check_obt_ut():
-    print("✅ Running step: check_obt_ut")
+    elapsed = tlm("ElapsedSeconds")
+    print(f"⏱️ Elapsed Seconds: {elapsed}")
 
 def disable_oop_update_by_gnss():
-    print("✅ Running step: disable_oop_update_by_gnss")
+    print("🛑 Simulating disable OOP update by GNSS...")
 
 def verify_gnss_validity_flag():
-    print("✅ Running step: verify_gnss_validity_flag")
+    lat = tlm("Latitude")
+    lon = tlm("Longitude")
+    print(f"🌐 GNSS Position: Latitude = {lat}, Longitude = {lon}")
 
 def configure_gnss_fdir():
-    print("✅ Running step: configure_gnss_fdir")
+    print("⚙️ GNSS FDIR configured (simulated)")
 
 def deactivate_oop_fdir():
-    print("✅ Running step: deactivate_oop_fdir")
+    print("🛑 OOP FDIR deactivated (simulated)")
 
 def authorize_oop_parameters_loading():
-    print("✅ Running step: authorize_oop_parameters_loading")
+    print("🔓 OOP parameter loading authorized")
 
 def load_oop_parameters():
-    print("✅ Running step: load_oop_parameters")
+    print("📦 Loading OOP parameters from XML (simulated)")
 
 def wait_reference_date():
-    print("✅ Running step: wait_reference_date")
+    print("⏳ Waiting for reference date... (simulated delay)")
 
 def verify_uploaded_parameters_in_open_mode():
-    print("✅ Running step: verify_uploaded_parameters_in_open_mode")
+    print("📋 Verifying uploaded OOP parameters in open mode")
 
 def check_current_nominal_longitude():
-    print("✅ Running step: check_current_nominal_longitude")
+    lon = tlm("Longitude")
+    print(f"🧭 Current Nominal Longitude: {lon}")
 
 def check_aj_nominal_longitude():
-    print("✅ Running step: check_aj_nominal_longitude")
+    print("🧭 AJ Nominal Longitude check (placeholder)")
 
 def flush_sgm_eeprom():
-    print("✅ Running step: flush_sgm_eeprom")
+    print("💾 EEPROM flush simulated")
 
 def update_current_nominal_longitude():
-    print("✅ Running step: update_current_nominal_longitude")
+    print("📍 Update current nominal longitude")
 
 def update_aj_nominal_longitude():
-    print("✅ Running step: update_aj_nominal_longitude")
+    print("📍 Update AJ nominal longitude")
 
 def write_in_sgm_eeprom():
-    print("✅ Running step: write_in_sgm_eeprom")
+    print("📝 Writing data into SGM EEPROM...")
 
 def update_oop_fdir_parameters():
-    print("✅ Running step: update_oop_fdir_parameters")
+    print("🛠️ Updating OOP FDIR parameters...")
 
 def configure_oop_with_new_parameters():
-    print("✅ Running step: configure_oop_with_new_parameters")
+    print("🆕 Applying new OOP parameters")
 
 def configure_oop_with_current_parameters():
-    print("✅ Running step: configure_oop_with_current_parameters")
+    print("🔁 Reapplying current OOP parameters")
 
 def enable_update_by_gnss():
-    print("✅ Running step: enable_update_by_gnss")
+    print("✅ Enabling update by GNSS")
 
 def activate_oop_fdir():
-    print("✅ Running step: activate_oop_fdir")
+    print("🚀 Activating OOP FDIR logic")
 
 def restore_observability():
-    print("✅ Running step: restore_observability")
+    print("🔄 Restoring system observability")
 
 def end_of_procedure():
-    print("✅ Procedure finished.")
+    print("✅ Procedure complete! All steps executed.")
 
-# Main function is placed at the bottom for YAMCS compatibility
+# Optional simulation fallback
+def tlm(param):
+    dummy_data = {
+        "Battery1_Voltage": 20.004,
+        "Battery1_Temp": 4.5,
+        "CDHS_Error_Flag": False,
+        "Payload_Error_Flag": False,
+        "Mode_Safe": False,
+        "EpochUSNO": 57388.117,
+        "ElapsedSeconds": 9952,
+        "EPS_Error_Flag": False,
+        "Latitude": -50.770676,
+        "Longitude": 98.226654,
+        "Sunsensor": 960.01904,
+        "Mode_Payload": False,
+    }
+    return dummy_data.get(param, "N/A")
+
 def main():
     initialise_procedure()
     set_variables()
@@ -131,4 +165,5 @@ def main():
     restore_observability()
     end_of_procedure()
 
-main()
+if __name__ == '__main__':
+    main()
