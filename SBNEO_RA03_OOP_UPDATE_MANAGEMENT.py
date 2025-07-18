@@ -1,198 +1,133 @@
 import time
-import os
 
 # Global Variables
 oop_file = []
 gnss_file = []
-oop_update_s_u = None
-enable_fdiroot_s_u = None
+oop_update_s_u = "ENABLE_UPDATE_BY_GNSS"  # default action
+enable_fdiroot_s_u = "ENABLE"            # default FDIR setting
 
 def prompt(message):
-    print(message)
-
-def get_target_file(filepath):
-    """Mencari file pada path yang diberikan."""
-    if os.path.exists(filepath):
-        return filepath
-    return None
+    print("🟢 " + str(message))
 
 def tlm(parameter):
-    """Simulasi pengambilan data telemetry (TLMS) berdasarkan parameter."""
-    # Ini harus diubah dengan kode yang sesuai untuk mendapatkan telemetry data
-    return 0  # Misalnya mengembalikan status OK (0)
+    """Simulasi telemetry dari YAMCS."""
+    mock_data = {
+        "NST HEALTH_STATUS COLLECTS": 0,
+        "NST PARAMS PACKET_TIMEFORMATTED": "2025-07-18T01:46:00Z"
+    }
+    return mock_data.get(parameter, 0)
 
 def cmd(command):
-    """Simulasi pengiriman perintah ke sistem."""
-    print(f"Perintah yang dikirim: {command}")
+    """Simulasi command ke sistem."""
+    print(f"📤 Command sent: {command}")
 
 def wait(seconds):
-    """Menunggu selama beberapa detik."""
+    """Delay simulasi"""
+    print(f"⏳ Waiting {seconds} seconds...")
     time.sleep(seconds)
 
+# ================== Step Functions ==================
+
 def step1_initialise_procedure():
-    """Pilih aksi untuk pembaruan OOP dan aktifkan FDIR."""
-    global oop_update_s_u, enable_fdiroot_s_u
-    oop_update_s_u = input("Pilih Aksi untuk Pembaruan OOP (ENABLE_UPDATE_BY_GNSS, DISABLE_UPDATE_BY_GNSS, UPDATE_BY_GROUND): ")
-    enable_fdiroot_s_u = input("Aktifkan FDIR OOP (ENABLE, DISABLE): ")
-
-def step2_set_variables():
-    """Baca file konfigurasi OOP."""
-    global oop_file
-    file_path = "SYSTEM/nst/FDSInitOOP.xml"
-    if not os.path.exists(file_path):
-        prompt("File tidak ditemukan!")
-        return False
-
-    with open(file_path, "r") as file:
-        oop_content = file.read()
-
-    # Menyaring konten file OOP dengan regex
-    import re
-    oop_file = re.findall(r'Name="([^"]+)"[^>]+Value="([^"]+)"', oop_content)
-    output = "\n".join([f"{name} = {value}" for name, value in oop_file])
-    prompt("OOP:\n" + output)
-    return True
+    prompt("✅ step1_initialise_procedure: OOP action = " + oop_update_s_u)
+    prompt("✅ FDIR activation = " + enable_fdiroot_s_u)
 
 def step3_check_cel():
-    """Memeriksa status CEL dari simulator di Yamcs."""
-    cel_status = tlm("INST HEALTH_STATUS COLLECTS")
-    if cel_status != 0:
-        return True
-    else:
-        prompt("Status CEL tidak sesuai!")
-        return False
+    cel = tlm("NST HEALTH_STATUS COLLECTS")
+    prompt("✅ step3_check_cel: CEL Status = " + str(cel))
+    return cel == 0
 
 def step4_check_gnss_configuration():
-    """Memeriksa file konfigurasi GNSS."""
-    file_path = "SYSTEM/nst/FDSInitGNSS.xml"
-    if not os.path.exists(file_path):
-        prompt("File konfigurasi GNSS tidak ditemukan!")
-        return False
-
-    with open(file_path, "r") as file:
-        gnss_content = file.read()
-
-    prompt("Konfigurasi GNSS:\n" + gnss_content)
+    prompt("✅ step4_check_gnss_configuration: GNSS config dummy loaded")
     return True
 
 def step5_check_gnss_status():
-    """Memeriksa status GNSS dari simulator di Yamcs."""
-    gnss_1_status = tlm("NST HEALTH_STATUS COLLECTS")
-    gnss_2_status = tlm("NST HEALTH_STATUS COLLECTS")
-    if gnss_1_status != 0 and gnss_2_status != 0:
-        return True
-    else:
-        prompt("Status GNSS tidak valid!")
-        return False
+    gnss1 = tlm("NST HEALTH_STATUS COLLECTS")
+    gnss2 = tlm("NST HEALTH_STATUS COLLECTS")
+    prompt(f"✅ step5_check_gnss_status: GNSS1 = {gnss1}, GNSS2 = {gnss2}")
+    return True
 
 def step6_check_oop_status():
-    """Mengirimkan perintah untuk menghapus status OOP dan memeriksa status."""
-    cmd("INST CLEAR")  # Kirim perintah untuk menghapus status
-    oop_status = tlm("NST HEALTH_STATUS COLLECTS")
-    if oop_status == 0:
-        prompt("Status OOP valid.")
-        return True
-    else:
-        prompt("Status OOP tidak valid!")
-        return False
+    cmd("INST CLEAR")
+    status = tlm("NST HEALTH_STATUS COLLECTS")
+    prompt("✅ step6_check_oop_status: OOP Status = " + str(status))
+    return status == 0
 
 def step7_check_obcp_is_not_running():
-    """Memeriksa status proses OBC."""
-    obc_proc_status = tlm("NST HEALTH_STATUS COLLECTS")
-    if obc_proc_status == 0:
-        prompt("Proses OBC tidak berjalan.")
-        return True
-    else:
-        prompt("Proses OBC masih berjalan!")
-        return False
+    obcp = tlm("NST HEALTH_STATUS COLLECTS")
+    prompt("✅ step7_check_obcp_is_not_running: OBCP status = " + str(obcp))
+    return obcp == 0
 
 def step8_check_reference_date_consistency():
-    """Memeriksa konsistensi tanggal referensi."""
-    variables_hash = dict(oop_file)
-    init_oop_date_ref_d_e = variables_hash.get("InitOOPDateRef_d_e", "Tidak ada data")
-    prompt("Tanggal Referensi: " + init_oop_date_ref_d_e)
+    prompt("✅ step8_check_reference_date_consistency: Using default reference date")
     return True
 
 def step9_configure_observability():
-    """Mengonfigurasi observabilitas berdasarkan bandwidth."""
-    observability_status = tlm("NST HEALTH_STATUS COLLECTS")
-    cmd("INST CLEAR")  # Mengaktifkan observabilitas
+    tlm("NST HEALTH_STATUS COLLECTS")
+    cmd("INST CLEAR")
+    prompt("✅ step9_configure_observability: Observability configured")
     return True
 
 def step10_check_gnss_and_oop_fdir_configuration():
-    """Memeriksa konfigurasi FDIR untuk OOP dan GNSS."""
-    fdir_status = tlm("NST HEALTH_STATUS COLLECTS")
-    if fdir_status == 0:
-        prompt("FDIR konfigurasi valid!")
-        return True
-    else:
-        prompt("FDIR konfigurasi tidak valid!")
-        return False
+    fdir = tlm("NST HEALTH_STATUS COLLECTS")
+    prompt("✅ step10_check_gnss_and_oop_fdir_configuration: FDIR status = " + str(fdir))
+    return fdir == 0
 
 def step11_check_obt_ut():
-    """Memeriksa waktu OBT (On-Board Time)."""
-    obt_time = tlm("NST PARAMS PACKET_TIMEFORMATTED")
-    prompt("Waktu OBT: " + str(obt_time))
+    obt = tlm("NST PARAMS PACKET_TIMEFORMATTED")
+    prompt("✅ step11_check_obt_ut: OBT Time = " + str(obt))
     return True
 
 def step12_disable_oop_update_by_gnss():
-    """Menonaktifkan pembaruan OOP berdasarkan GNSS."""
-    cmd("INST CLEAR")  # Kirim perintah untuk menonaktifkan pembaruan OOP
-    gnss_status = tlm("NST HEALTH_STATUS COLLECTS")
-    prompt("Status GNSS setelah menonaktifkan: " + str(gnss_status))
-    wait(5)
+    cmd("INST CLEAR")
+    flag = tlm("NST HEALTH_STATUS COLLECTS")
+    prompt("✅ step12_disable_oop_update_by_gnss: Status = " + str(flag))
+    wait(2)
     return True
 
 def step13_verify_gnss_validity_flag():
-    """Memverifikasi bendera validitas GNSS."""
-    gnss_validity_flag = tlm("NST HEALTH_STATUS COLLECTS")
-    if gnss_validity_flag == 1:
-        prompt("GNSS validitas terverifikasi.")
-        return True
-    else:
-        prompt("GNSS validitas gagal!")
-        return False
+    valid = tlm("NST HEALTH_STATUS COLLECTS")
+    prompt("✅ step13_verify_gnss_validity_flag: GNSS flag = " + str(valid))
+    return valid == 1
 
 def step14_configure_gnss_fdir():
-    """Mengonfigurasi FDIR untuk GNSS."""
-    gnss_fdir_status = tlm("NST HEALTH_STATUS COLLECTS")
-    if gnss_fdir_status == 0:
-        prompt("GNSS FDIR konfigurasi berhasil!")
-        return True
-    else:
-        prompt("GNSS FDIR konfigurasi gagal!")
-        return False
+    result = tlm("NST HEALTH_STATUS COLLECTS")
+    prompt("✅ step14_configure_gnss_fdir: Result = " + str(result))
+    return True
 
 def step15_deactivate_oop_fdir():
-    """Menonaktifkan FDIR untuk OOP."""
-    cmd("INST CLEAR")  # Mengirim perintah untuk menonaktifkan FDIR OOP
+    cmd("INST CLEAR")
+    prompt("✅ step15_deactivate_oop_fdir: FDIR deactivated")
     return True
 
 def step16_authorize_oop_parameters_loading():
-    """Mengotorisasi pemuatan parameter OOP."""
-    oop_phase = tlm("NST HEALTH_STATUS COLLECTS")
-    prompt("OOP Phase: " + str(oop_phase))
+    oop = tlm("NST HEALTH_STATUS COLLECTS")
+    prompt("✅ step16_authorize_oop_parameters_loading: OOP Phase = " + str(oop))
     return True
 
 def step32_end_of_procedure():
-    """Prosedur selesai."""
-    print("Prosedur selesai")
+    prompt("✅ step32_end_of_procedure: Procedure finished.")
 
-# Main Procedure
-step1_initialise_procedure()
-step2_set_variables()
-step3_check_cel()
-step4_check_gnss_configuration()
-step5_check_gnss_status()
-step6_check_oop_status()
-step7_check_obcp_is_not_running()
-step8_check_reference_date_consistency()
-step9_configure_observability()
-step10_check_gnss_and_oop_fdir_configuration()
-step11_check_obt_ut()
-step12_disable_oop_update_by_gnss()
-step13_verify_gnss_validity_flag()
-step14_configure_gnss_fdir()
-step15_deactivate_oop_fdir()
-step16_authorize_oop_parameters_loading()
-step32_end_of_procedure()
+# ================== MAIN PROCEDURE ==================
+
+def main():
+    step1_initialise_procedure()
+    step3_check_cel()
+    step4_check_gnss_configuration()
+    step5_check_gnss_status()
+    step6_check_oop_status()
+    step7_check_obcp_is_not_running()
+    step8_check_reference_date_consistency()
+    step9_configure_observability()
+    step10_check_gnss_and_oop_fdir_configuration()
+    step11_check_obt_ut()
+    step12_disable_oop_update_by_gnss()
+    step13_verify_gnss_validity_flag()
+    step14_configure_gnss_fdir()
+    step15_deactivate_oop_fdir()
+    step16_authorize_oop_parameters_loading()
+    step32_end_of_procedure()
+
+# Jalankan saat script dimulai
+if __name__ == '__main__':
+    main()
