@@ -1,0 +1,42 @@
+import socket
+import struct
+import time
+import threading
+
+# Konfigurasi
+YAMCS_HOST = '127.0.0.1'
+YAMCS_PORT = 10015  # Sesuaikan dengan input link (udp-in)
+LISTEN_PORT = 12345  # Untuk menerima RESET dari Yamcs
+elapsed = 0
+running = True
+
+def send_telemetry():
+    global elapsed
+    while running:
+        # Buat packet ElapsedSeconds (4-byte unsigned int)
+        packet = struct.pack('>I', elapsed)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.sendto(packet, (YAMCS_HOST, YAMCS_PORT))
+        print(f"[SIMULATOR] Sent ElapsedSeconds={elapsed}")
+        elapsed += 1
+        time.sleep(1)
+
+def listen_reset():
+    global elapsed
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.bind(('0.0.0.0', LISTEN_PORT))
+        print(f"[SIMULATOR] Listening for RESET on port {LISTEN_PORT}...")
+        while running:
+            data, _ = s.recvfrom(1024)
+            if data.strip().upper() == b'RESET':
+                print("[SIMULATOR] Received RESET command!")
+                elapsed = 0
+
+if __name__ == "__main__":
+    # Jalankan pengirim telemetry dan pendengar RESET secara paralel
+    t1 = threading.Thread(target=send_telemetry)
+    t2 = threading.Thread(target=listen_reset)
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
