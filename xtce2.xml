@@ -1,19 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<SpaceSystem name="myproject" xmlns="http://www.omg.org/spec/XTCE/20180204" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204 https://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+<SpaceSystem name="myproject" xmlns="http://www.omg.org/spec/XTCE/20180204"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204 https://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+
   <TelemetryMetaData>
+
     <ParameterTypeSet>
-      <IntegerParameterType name="uint32_t" signed="false">
-        <UnitSet />
-        <IntegerDataEncoding encoding="unsigned" sizeInBits="32" />
-      </IntegerParameterType>
-      <AggregateParameterType name="CCSDS_Packet_ID_Type">
-        <MemberList>
-          <Member name="Version" typeRef="uint3_t"/>
-          <Member name="Type" typeRef="bool1_t"/>
-          <Member name="SecHdrFlag" typeRef="bool1_t"/>
-          <Member name="APID" typeRef="uint11_t"/>
-        </MemberList>
-      </AggregateParameterType>
       <IntegerParameterType name="uint3_t" signed="false">
         <IntegerDataEncoding sizeInBits="3"/>
       </IntegerParameterType>
@@ -23,8 +15,21 @@
       <IntegerParameterType name="uint11_t" signed="false">
         <IntegerDataEncoding sizeInBits="11"/>
       </IntegerParameterType>
+      <AggregateParameterType name="CCSDS_Packet_ID_Type">
+        <MemberList>
+          <Member name="Version" typeRef="uint3_t"/>
+          <Member name="Type" typeRef="bool1_t"/>
+          <Member name="SecHdrFlag" typeRef="bool1_t"/>
+          <Member name="APID" typeRef="uint11_t"/>
+        </MemberList>
+      </AggregateParameterType>
+
       <IntegerParameterType name="CCSDS_Packet_Length_Type" signed="false">
-        <IntegerDataEncoding sizeInBits="16" />
+        <IntegerDataEncoding sizeInBits="16"/>
+      </IntegerParameterType>
+
+      <IntegerParameterType name="uint32_t" signed="false">
+        <IntegerDataEncoding encoding="unsigned" sizeInBits="32"/>
       </IntegerParameterType>
     </ParameterTypeSet>
 
@@ -45,17 +50,22 @@
       <SequenceContainer name="ElapsedOnly">
         <BaseContainer containerRef="CCSDSPacket">
           <RestrictionCriteria>
-            <Comparison name="MatchElapsedAPID" parameterRef="CCSDS_Packet_ID/APID" value="4096"/>
+            <ComparisonList>
+              <Comparison parameterRef="CCSDS_Packet_ID/APID" value="256"/>
+              <Comparison parameterRef="CCSDS_Packet_ID/SecHdrFlag" value="false"/>
+            </ComparisonList>
           </RestrictionCriteria>
         </BaseContainer>
         <EntryList>
           <ParameterRefEntry parameterRef="ElapsedSeconds">
             <LocationInContainerInBits referenceLocation="containerStart">
-              <FixedValue>48</FixedValue>
+              <FixedValue>48</FixedValue> <!-- After 6-byte CCSDS primary header -->
             </LocationInContainerInBits>
           </ParameterRefEntry>
         </EntryList>
       </SequenceContainer>
     </ContainerSet>
+
   </TelemetryMetaData>
+
 </SpaceSystem>
