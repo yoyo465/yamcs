@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SpaceSystem name="myproject" xmlns="http://www.omg.org/spec/XTCE/20180204" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204 https://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+  <TelemetryMetaData>
+    <ParameterTypeSet>
+      <IntegerParameterType name="uint32_t" signed="false">
+        <UnitSet />
+        <IntegerDataEncoding encoding="unsigned" sizeInBits="32" />
+      </IntegerParameterType>
+      <AggregateParameterType name="CCSDS_Packet_ID_Type">
+        <MemberList>
+          <Member name="Version" typeRef="uint3_t"/>
+          <Member name="Type" typeRef="bool1_t"/>
+          <Member name="SecHdrFlag" typeRef="bool1_t"/>
+          <Member name="APID" typeRef="uint11_t"/>
+        </MemberList>
+      </AggregateParameterType>
+      <IntegerParameterType name="uint3_t" signed="false">
+        <IntegerDataEncoding sizeInBits="3"/>
+      </IntegerParameterType>
+      <BooleanParameterType name="bool1_t" zeroStringValue="false" oneStringValue="true">
+        <IntegerDataEncoding sizeInBits="1"/>
+      </BooleanParameterType>
+      <IntegerParameterType name="uint11_t" signed="false">
+        <IntegerDataEncoding sizeInBits="11"/>
+      </IntegerParameterType>
+      <IntegerParameterType name="CCSDS_Packet_Length_Type" signed="false">
+        <IntegerDataEncoding sizeInBits="16" />
+      </IntegerParameterType>
+    </ParameterTypeSet>
+
+    <ParameterSet>
+      <Parameter name="CCSDS_Packet_ID" parameterTypeRef="CCSDS_Packet_ID_Type"/>
+      <Parameter name="CCSDS_Packet_Length" parameterTypeRef="CCSDS_Packet_Length_Type"/>
+      <Parameter name="ElapsedSeconds" parameterTypeRef="uint32_t"/>
+    </ParameterSet>
+
+    <ContainerSet>
+      <SequenceContainer name="CCSDSPacket">
+        <EntryList>
+          <ParameterRefEntry parameterRef="CCSDS_Packet_ID"/>
+          <ParameterRefEntry parameterRef="CCSDS_Packet_Length"/>
+        </EntryList>
+      </SequenceContainer>
+
+      <SequenceContainer name="ElapsedOnly">
+        <BaseContainer containerRef="CCSDSPacket">
+          <RestrictionCriteria>
+            <Comparison name="MatchElapsedAPID" parameterRef="CCSDS_Packet_ID/APID" value="4096"/>
+          </RestrictionCriteria>
+        </BaseContainer>
+        <EntryList>
+          <ParameterRefEntry parameterRef="ElapsedSeconds">
+            <LocationInContainerInBits referenceLocation="containerStart">
+              <FixedValue>48</FixedValue>
+            </LocationInContainerInBits>
+          </ParameterRefEntry>
+        </EntryList>
+      </SequenceContainer>
+    </ContainerSet>
+  </TelemetryMetaData>
+</SpaceSystem>
