@@ -1,0 +1,6 @@
+seq,ElapsedSeconds,BatteryVoltage,EnumPara1
+0,100,3.7,0
+1,101,3.71,1
+2,102,3.72,2
+3,103,3.73,3
+4,104,3.74,4
