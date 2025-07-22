@@ -13,8 +13,7 @@ RESET_PORT = 12345
 DELAY = 1.0  # seconds
 
 sim_state = {
-    "reset": False,
-    "elapsed_offset": 0
+    "reset": False
 }
 
 def build_packet(seq, elapsed, voltage, enum_val, apid=100):
@@ -36,7 +35,7 @@ def listen_for_reset():
         msg, _ = sock.recvfrom(1024)
         if msg.strip().upper() == b"RESET":
             sim_state["reset"] = True
-            print("[SIM] RESET received — elapsed counter will restart")
+            print("[SIM] RESET received — restarting from beginning")
 
 def main_loop():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -46,22 +45,24 @@ def main_loop():
             reader = csv.DictReader(csvfile)
             rows = list(reader)
 
-        for row in rows:
+        index = 0
+        while index < len(rows):
             if sim_state["reset"]:
-                sim_state["elapsed_offset"] = int(time.time())
+                index = 0
                 sim_state["reset"] = False
 
+            row = rows[index]
             seq = int(row["seq"])
-            base_elapsed = int(row["ElapsedSe"])
-            elapsed = sim_state["elapsed_offset"] + base_elapsed
-
+            elapsed = int(row["ElapsedSe"])
             voltage = float(row["BatteryVol"])
             enum_val = int(row["EnumPara1"])
 
             packet = build_packet(seq, elapsed, voltage, enum_val)
             sock.sendto(packet, (TM_HOST, TM_PORT))
             print(f"[SIM] Sent TM #{seq} -> Elapsed={elapsed}, V={voltage}, Enum={enum_val}")
+
             time.sleep(DELAY)
+            index += 1
 
 if __name__ == "__main__":
     threading.Thread(target=listen_for_reset, daemon=True).start()
