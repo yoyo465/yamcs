@@ -13,7 +13,8 @@ RESET_PORT = 12345
 DELAY = 1.0  # seconds
 
 sim_state = {
-    "reset": False
+    "reset": False,
+    "start_time": time.time()
 }
 
 def build_packet(seq, elapsed, voltage, enum_val, apid=100):
@@ -22,7 +23,7 @@ def build_packet(seq, elapsed, voltage, enum_val, apid=100):
     sec_hdr_flag = 0
     packet_id = ((version << 13) | (type_bit << 12) | (sec_hdr_flag << 11) | (apid & 0x7FF))
     packet_seq = ((0b11 << 14) | (seq & 0x3FFF))
-    payload = struct.pack(">IfB", elapsed, voltage, enum_val)
+    payload = struct.pack(">IfB", int(elapsed), voltage, enum_val)
     pkt_len = len(payload) - 1
     header = struct.pack(">HHH", packet_id, packet_seq, pkt_len)
     return header + payload
@@ -35,34 +36,31 @@ def listen_for_reset():
         msg, _ = sock.recvfrom(1024)
         if msg.strip().upper() == b"RESET":
             sim_state["reset"] = True
-            print("[SIM] RESET received — restarting from beginning")
+            sim_state["start_time"] = time.time()
+            print("[SIM] RESET received — ElapsedSeconds restarted")
 
 def main_loop():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+    with open(CSV_FILE) as csvfile:
+        reader = csv.DictReader(csvfile)
+        rows = list(reader)
+
+    index = 0
     while True:
-        with open(CSV_FILE) as csvfile:
-            reader = csv.DictReader(csvfile)
-            rows = list(reader)
+        row = rows[index % len(rows)]
+        seq = int(row["seq"])
+        voltage = float(row["BatteryVol"])
+        enum_val = int(row["EnumPara1"])
 
-        index = 0
-        while index < len(rows):
-            if sim_state["reset"]:
-                index = 0
-                sim_state["reset"] = False
+        elapsed = time.time() - sim_state["start_time"]
+        packet = build_packet(seq, elapsed, voltage, enum_val)
+        sock.sendto(packet, (TM_HOST, TM_PORT))
 
-            row = rows[index]
-            seq = int(row["seq"])
-            elapsed = int(row["ElapsedSe"])
-            voltage = float(row["BatteryVol"])
-            enum_val = int(row["EnumPara1"])
+        print(f"[SIM] Sent TM #{seq} -> Elapsed={int(elapsed)}, V={voltage}, Enum={enum_val}")
 
-            packet = build_packet(seq, elapsed, voltage, enum_val)
-            sock.sendto(packet, (TM_HOST, TM_PORT))
-            print(f"[SIM] Sent TM #{seq} -> Elapsed={elapsed}, V={voltage}, Enum={enum_val}")
-
-            time.sleep(DELAY)
-            index += 1
+        index += 1
+        time.sleep(DELAY)
 
 if __name__ == "__main__":
     threading.Thread(target=listen_for_reset, daemon=True).start()
