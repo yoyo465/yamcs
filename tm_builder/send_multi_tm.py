@@ -17,13 +17,13 @@ sim_state = {
     "start_time": time.time()
 }
 
-def build_packet(seq, elapsed, voltage, enum_val, apid=100):
+def build_packet(seq, elapsed, voltage, enum_val, thruster_status, apid=100):
     version = 0b000
     type_bit = 0
     sec_hdr_flag = 0
     packet_id = ((version << 13) | (type_bit << 12) | (sec_hdr_flag << 11) | (apid & 0x7FF))
     packet_seq = ((0b11 << 14) | (seq & 0x3FFF))
-    payload = struct.pack(">IfB", int(elapsed), voltage, enum_val)
+    payload = struct.pack(">IfBB", int(elapsed), voltage, enum_val,thruster_status)
     pkt_len = len(payload) - 1
     header = struct.pack(">HHH", packet_id, packet_seq, pkt_len)
     return header + payload
@@ -50,14 +50,15 @@ def main_loop():
     while True:
         row = rows[index % len(rows)]
         seq = int(row["seq"])
-        voltage = float(row["BatteryVol"])
+        voltage = float(row["BatteryVoltage"])
         enum_val = int(row["EnumPara1"])
+        thr_stat = int(row["ThrusterStatus"])
 
         elapsed = time.time() - sim_state["start_time"]
-        packet = build_packet(seq, elapsed, voltage, enum_val)
+        packet = build_packet(seq, elapsed, voltage, enum_val,thr_stat)
         sock.sendto(packet, (TM_HOST, TM_PORT))
 
-        print(f"[SIM] Sent TM #{seq} -> Elapsed={int(elapsed)}, V={voltage}, Enum={enum_val}")
+        print(f"[SIM] Sent TM #{seq} -> Elapsed={int(elapsed)}, V={voltage}, Enum={enum_val}, Thr_stat={thr_stat}")
 
         index += 1
         time.sleep(DELAY)
