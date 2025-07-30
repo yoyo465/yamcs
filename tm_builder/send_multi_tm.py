@@ -43,13 +43,13 @@ def listen_for_tc():
         if apid != CMD_APID:
             continue
 
-        # hitung panjang payload = length+1, lalu slice
-        payload = data[6:6 + (length + 1)]
-        if len(payload) >= 1:
-            thr_arg = payload[0]
-            sim_state["thruster_status"] = 1 if thr_arg != 0 else 0
-            state_str = "ON" if sim_state["thruster_status"] else "OFF"
-            print(f"[SIM] TC received (APID=0x{apid:03X}), thruster_arg={thr_arg} → status={state_str}")
+        raw = data[6:]
+        if len(raw) < 3:
+            continue
+        thr_arg = raw[2]
+        sim_state["thruster_status"] = 1 if thr_arg != 2 else 0
+        state_str = "ON" if sim_state["thruster_status"] else "OFF"
+        print(f"[SIM] TC received (APID=0x{apid:03X}), thruster_arg={thr_arg} → status={state_str}")
 
 def build_packet(seq, elapsed, voltage, enum_val, thruster, apid=100):
     """Bikin CCSDS TM: uint32 elapsed, float voltage, uint8 enum_val, uint8 thruster."""
