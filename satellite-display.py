@@ -10,14 +10,17 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 
 # --- Config ---
-TM_HOST = "127.0.0.1"
+TM_HOST = "192.168.2.113"
 TM_PORT = 10055
 TC_HOST = "127.0.0.1"
 TC_PORT = 10065
-
 tm_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+tm_socket.connect((TM_HOST, TM_PORT))
+
 tc_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 tc_socket.bind((TC_HOST, TC_PORT))
+tc_socket.listen(1)
+conn, addr = tc_socket.accept()
 
 def build_tm_packet(version, type_, sec_hdr_flag, apid, group_flags, seq_count, battery1, battery2, temperature, modeflag, counter, sys_ok, eps_ok, adcs_ok, tcs_ok, solar_power):
     primary_header_1 = ((version & 0x7) << 13) | ((type_ & 0x1) << 12) | ((sec_hdr_flag & 0x1) << 11) | (apid & 0x7FF)
@@ -41,6 +44,11 @@ class TMThread(Thread):
         self.t0 = time.time()
 
     def run(self):
+        conn, addr = tc_socket.accept()
+        while True:
+            data = conn.recv(1024)
+            if not data:
+                break
         while True:
             self.seq_count = (self.seq_count + 1) % 16384
             discharge_rate = 0.1
@@ -68,7 +76,7 @@ class TMThread(Thread):
                 0, 0, 0, 110, 3, self.seq_count,
                 self.battery1, self.battery2, self.temp, self.mode, self.counter,  sys_ok, eps_ok, adcs_ok, tcs_ok, self.solar_power
             )
-            tm_socket.sendto(packet, (TM_HOST, TM_PORT))
+            tm_socket.sendall(packet)
             time.sleep(1)
 
 class TCThread(Thread):
@@ -81,7 +89,7 @@ class TCThread(Thread):
 
     def run(self):
         while True:
-            data, _ = tc_socket.recvfrom(1024)
+            data, _ = tc_socket.recv(1024)
             self.counter += 1
 
             if len(data) >= 8:
