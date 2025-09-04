@@ -1,39 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-OOP-like GNSS Update Procedure for Yamcs (updated)
---------------------------------------------------
-- Meniru alur prosedur XML: INITIALISE → SET_VARIABLES → CHECK_CEL → CHECK_GNSS_CONFIGURATION
+OOP-like Procedure (NO CLIENT)
+------------------------------
+- Tidak memakai paket `yamcs-client`, hanya REST API via urllib (stdlib).
+- Meniru alur: INITIALISE → SET_VARIABLES → CHECK_CEL → CHECK_GNSS_CONFIGURATION
   → CHECK_GNSS_STATUS → CHECK_OOP_STATUS.
-- Dijalan­kan dari YAMCS Web: Procedures → Run a script.
-- Mengandalkan Yamcs Python Client (pip install yamcs-client).
-
-Argumen contoh:
-  --oop-update DISABLE_UPDATE_BY_GNSS --enable-fdir DISABLED --action-mask-inflight YES --gnss-presence YES
-  --cmd-hk /simdhs/PST_HK_ONE_SHOT_DWL --hk-count 1 --hk-sid AO_GNSS_HK
-  --param-oop-upd-by-gnss-flag /simdhs/PSA_OOP_UPD_BY_GPS_FLG
-  --param-cel /simdhs/PSF_CEL_PKT_NB
-  --param-gnss1-sts /simdhs/CFG_GNSS_1_STS
-  --param-gnss2-sts /simdhs/CFG_GNSS_2_STS
-  --param-oop-sts /simdhs/OOP_STS
 
 Exit code:
   0 = SUCCESS, 1 = ABORT/FAILED (lihat log Activities).
 """
-import argparse
-import os
-import sys
-import time
+import argparse, json, os, sys, time
+from urllib.request import Request, urlopen
+from urllib.parse import quote
 
-try:
-    from yamcs.client import YamcsClient
-except Exception as e:
-    print("[FATAL] yamcs Python client not available. Install with: pip install yamcs-client", flush=True)
-    sys.exit(1)
-
-def log(level, msg):
-    print(f"[{level}] {msg}", flush=True)
-
+def log(level, msg): print(f"[{level}] {msg}", flush=True)
 def abort(code, msg):
     log("ABORT", f"code={code} msg={msg}")
     sys.exit(1)
@@ -41,159 +22,178 @@ def abort(code, msg):
 def bool_from_yesno(v: str) -> bool:
     return str(v).strip().upper() in ("YES", "ENABLED", "TRUE", "1")
 
-def get_param(processor, path, *, from_cache=False, timeout=5.0):
-    """Read a single parameter value (engineering)."""
-    try:
-        pv = processor.get_parameter_value(path, from_cache=from_cache, timeout=timeout)
-        return pv
-    except Exception as e:
-        abort(-20, f"Failed to read parameter {path}: {e}")
+# ==== REST helpers (tanpa paket eksternal) ====
+def rest(base, path, method="GET", data=None, token=None, timeout=8.0):
+    url = f"{base}{path}"
+    req = Request(url, method=method)
+    req.add_header("Accept", "application/json")
+    if data is not None:
+        body = json.dumps(data).encode("utf-8")
+        req.add_header("Content-Type", "application/json")
+        req.data = body
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    with urlopen(req, timeout=timeout) as resp:
+        ctype = resp.headers.get("Content-Type","")
+        if "application/json" in ctype:
+            return json.loads(resp.read().decode("utf-8"))
+        return resp.read().decode("utf-8")
 
-def pv_eng_value(pv):
-    # yamcs client ParameterValue typically has 'eng_value' (or 'value' attr fallback)
-    try:
-        return pv.eng_value
-    except Exception:
-        return getattr(pv, "value", pv)
+def eng_value_from_param_json(obj):
+    # Ambil nilai engineering dari JSON ParameterValue YAMCS
+    v = obj.get("engValue") or obj.get("value") or {}
+    if isinstance(v, dict):
+        for k, val in v.items():
+            if k.endswith("Value") and k != "type":
+                return val
+        # fallback kalau struktur tidak standar
+        return v.get("stringValue") or v.get("floatValue") or v.get("doubleValue") or v.get("uint32Value") or v.get("sint32Value") or v
+    return v
 
-def issue_command(processor, path, args=None, await_ack=True, await_complete=False, timeout=10.0):
+def get_param(base, instance, processor, name, token=None, timeout=8.0):
+    safe = quote(name, safe="")  # encode slash/space dsb
     try:
-        if await_ack or await_complete:
-            conn = processor.create_command_connection()
-            cmd = conn.issue(path, args=args or {})
-            if await_ack:
-                ack = cmd.await_acknowledgment("Acknowledge_Sent", timeout=timeout)
-                log("INFO", f"Acknowledgment: {ack.name} -> {ack.status}")
-            if await_complete:
-                cmd.await_complete(timeout=timeout)
-                if cmd.is_success():
-                    log("INFO", f"Command completed OK: {path}")
-                else:
-                    abort(-19, f"Command failed: {path} error={cmd.error}")
-            return True
-        else:
-            processor.issue_command(path, args=args or {})
-            return True
+        j = rest(base, f"/api/processors/{instance}/{processor}/parameters/{safe}", "GET", None, token, timeout)
+        return eng_value_from_param_json(j)
     except Exception as e:
-        abort(-19, f"Failed to issue command {path}: {e}")
+        abort(-20, f"Failed to read parameter {name}: {e}")
+
+def issue_command(base, instance, processor, qname, args=None, token=None, wait_ack=True, timeout=8.0):
+    # Sederhana: POST command, lalu (opsional) polling status singkat sampai ACK 'Acknowledge_Sent' muncul.
+    qsafe = quote(qname, safe="")
+    try:
+        j = rest(base, f"/api/processors/{instance}/{processor}/commands/{qsafe}",
+                 "POST", {"args": args or {}}, token, timeout)
+        cmd_id = j.get("id") or j.get("commandId") or j  # fleksibel
+        log("INFO", f"Issued command: {qname}")
+        if not wait_ack:
+            return True
+        # Poll daftar command terbaru & cari status (poll ringan 5x)
+        for _ in range(5):
+            time.sleep(0.8)
+            try:
+                lst = rest(base, f"/api/instances/{instance}/processors/{processor}/commands", "GET", None, token, timeout)
+                # cari entry terakhir dengan qname cocok
+                if isinstance(lst, dict) and "commands" in lst:
+                    for c in lst["commands"][-10:]:
+                        if c.get("qualifiedName") == qname:
+                            acks = c.get("acknowledgments", [])
+                            for a in acks:
+                                if a.get("name") == "Acknowledge_Sent":
+                                    log("INFO", f"Acknowledgment: {a.get('name')} -> {a.get('status')}")
+                                    return True
+            except Exception:
+                pass
+        log("WARN", "ACK not observed (continuing).")
+        return True
+    except Exception as e:
+        abort(-19, f"Failed to issue command {qname}: {e}")
 
 def main():
-    parser = argparse.ArgumentParser(description="OOP-like GNSS Update Procedure for Yamcs")
+    p = argparse.ArgumentParser(description="OOP-like GNSS Update Procedure (no yamcs-client)")
+    # ===== args seperti versi sebelumnya =====
+    p.add_argument("--oop-update", choices=["ENABLE_UPDATE_BY_GNSS", "DISABLE_UPDATE_BY_GNSS"], required=True)
+    p.add_argument("--enable-fdir", choices=["ENABLED", "DISABLED"], required=True)
+    p.add_argument("--action-mask-inflight", choices=["YES","NO"], default="YES")
+    p.add_argument("--gnss-presence", choices=["YES","NO"], default="YES")
 
-    # User arguments (equiv to proc.arg.*)
-    parser.add_argument("--oop-update", choices=["ENABLE_UPDATE_BY_GNSS", "DISABLE_UPDATE_BY_GNSS"], required=True,
-                        help="Enable/Disable OOP update by GNSS")
-    parser.add_argument("--enable-fdir", choices=["ENABLED", "DISABLED"], required=True,
-                        help="Enable/Disable OOP FDIR")
+    p.add_argument("--cmd-hk", default=None)
+    p.add_argument("--hk-count", type=int, default=1)
+    p.add_argument("--hk-sid", default="AO_GNSS_HK")
 
-    # Config-like flags (equiv to proc.var.SC_CFG_MASK_*)
-    parser.add_argument("--action-mask-inflight", choices=["YES", "NO"], default="YES",
-                        help="SC_CFG_MASK_ActionToPerformInFlight_s_e (YES/NO)")
-    parser.add_argument("--gnss-presence", choices=["YES", "NO"], default="YES",
-                        help="SC_CFG_MASK_GNSSPresence_s_e (YES/NO)")
+    p.add_argument("--param-oop-upd-by-gnss-flag", default="/simdhs/PSA_OOP_UPD_BY_GPS_FLG")
+    p.add_argument("--param-cel", default="/simdhs/PSF_CEL_PKT_NB")
+    p.add_argument("--param-gnss1-sts", default="/simdhs/CFG_GNSS_1_STS")
+    p.add_argument("--param-gnss2-sts", default="/simdhs/CFG_GNSS_2_STS")
+    p.add_argument("--param-oop-sts", default="/simdhs/OOP_STS")
 
-    # Optional one-shot HK command (replicate PST_HK_ONE_SHOT_DWL idea)
-    parser.add_argument("--cmd-hk", default=None, help="XTCE path of ONE SHOT HK command (e.g. /simdhs/PST_HK_ONE_SHOT_DWL)")
-    parser.add_argument("--hk-count", type=int, default=1, help="ONE SHOT HK: number of packets")
-    parser.add_argument("--hk-sid", default="AO_GNSS_HK", help="ONE SHOT HK: SID")
+    p.add_argument("--wait-after-hk-sec", type=float, default=5.0)
+    p.add_argument("--timeout", type=float, default=8.0)
 
-    # Parameter paths (defaults aligned to your 'GPS' naming in XML)
-    parser.add_argument("--param-oop-upd-by-gnss-flag", default="/simdhs/PSA_OOP_UPD_BY_GPS_FLG")
-    parser.add_argument("--param-cel", default="/simdhs/PSF_CEL_PKT_NB")
-    parser.add_argument("--param-gnss1-sts", default="/simdhs/CFG_GNSS_1_STS")
-    parser.add_argument("--param-gnss2-sts", default="/simdhs/CFG_GNSS_2_STS")
-    parser.add_argument("--param-oop-sts", default="/simdhs/OOP_STS")
+    # ===== koneksi REST (ambil dari env bila ada) =====
+    p.add_argument("--url", default=os.environ.get("YAMCS_URL", "http://localhost:8090"))
+    p.add_argument("--instance", default=os.environ.get("YAMCS_INSTANCE", "satx"))
+    p.add_argument("--processor", default=os.environ.get("YAMCS_PROCESSOR", "realtime"))
+    p.add_argument("--auth-token", default=os.environ.get("YAMCS_AUTH_TOKEN", None))
+    p.add_argument("--debug", action="store_true")
 
-    # Timing knobs
-    parser.add_argument("--wait-after-hk-sec", type=float, default=5.0, help="Wait after ONE SHOT HK (seconds)")
-    parser.add_argument("--timeout", type=float, default=8.0, help="Generic timeout (seconds)")
+    a = p.parse_args()
 
-    # Debug verbosity
-    parser.add_argument("--debug", action="store_true", help="Print interpreter/env info at start")
-
-    args = parser.parse_args()
-
-    if args.debug:
+    if a.debug:
         log("INFO", f"Python = {sys.executable}")
-        log("INFO", f"PATH = {os.environ.get('PATH','')}")
+        log("INFO", f"BASE = {a.url}, INSTANCE = {a.instance}, PROCESSOR = {a.processor}")
 
-    log("INFO", f"OOPUpdate = {args.oop_update}")
-    log("INFO", f"EnableFDIR  = {args.enable_fdir}")
-    log("INFO", f"ActionInFlight = {args.action_mask_inflight}, GNSSPresence = {args.gnss_presence}")
+    log("INFO", f"OOPUpdate = {a.oop_update}")
+    log("INFO", f"EnableFDIR  = {a.enable_fdir}")
+    log("INFO", f"ActionInFlight = {a.action_mask_inflight}, GNSSPresence = {a.gnss_presence}")
 
-    # Connect using YAMCS_* env (provided by Web Procedures runner)
-    try:
-        client = YamcsClient.from_environment()
-        instance = os.environ["YAMCS_INSTANCE"]
-        processor_name = os.environ["YAMCS_PROCESSOR"]
-        processor = client.get_processor(instance=instance, processor=processor_name)
-    except Exception as e:
-        abort(-16, f"Failed to connect to Yamcs via environment: {e}")
+    base = a.url.rstrip("/")
+    instance = a.instance
+    processor = a.processor
+    token = a.auth_token
 
-    # Step: INITIALISE_PROCEDURE
-    oop_update_by_gnss_enabled = (args.oop_update == "ENABLE_UPDATE_BY_GNSS")
-    OopUpdatedByGnssSts_s_g = oop_update_by_gnss_enabled
-    log("INFO", f"OopUpdatedByGnssSts = {OopUpdatedByGnssSts_s_g}")
+    # INITIALISE_PROCEDURE
+    oop_update_by_gnss_enabled = (a.oop_update == "ENABLE_UPDATE_BY_GNSS")
+    OopUpdatedByGnssSts = oop_update_by_gnss_enabled
+    log("INFO", f"OopUpdatedByGnssSts = {OopUpdatedByGnssSts}")
 
-    # Step: SET_VARIABLES (only if inflight YES)
-    if bool_from_yesno(args.action_mask_inflight):
-        if args.cmd_hk:
-            log("INFO", f"Issuing ONE-SHOT HK: {args.cmd_hk} (count={args.hk_count}, sid={args.hk_sid})")
-            # Adjust argument names to your MDB if needed:
-            hk_args = {
-                "CNT_TC_GRP71": int(args.hk_count),
-                "APIDS_SIDS_GRP_SID2": str(args.hk_sid),
-            }
-            issue_command(processor, args.cmd_hk, args=hk_args, await_ack=True, await_complete=False, timeout=args.timeout)
-            time.sleep(float(args.wait_after_hk_sec))
+    # SET_VARIABLES
+    if bool_from_yesno(a.action_mask_inflight):
+        if a.cmd_hk:
+            log("INFO", f"Issuing ONE-SHOT HK: {a.cmd_hk} (count={a.hk_count}, sid={a.hk_sid})")
+            hk_args = {"CNT_TC_GRP71": int(a.hk_count), "APIDS_SIDS_GRP_SID2": str(a.hk_sid)}
+            issue_command(base, instance, processor, a.cmd_hk, args=hk_args, token=token, wait_ack=True, timeout=a.timeout)
+            time.sleep(float(a.wait_after_hk_sec))
         else:
             log("WARN", "Skipping ONE-SHOT HK (no --cmd-hk provided)")
 
-        pv = get_param(processor, args.param_oop_upd_by_gnss_flag, from_cache=False, timeout=args.timeout)
-        OOPByGNSSInitialSts = str(pv_eng_value(pv))
+        try:
+            OOPByGNSSInitialSts = str(get_param(base, instance, processor, a.param_oop_upd_by_gnss_flag, token, a.timeout))
+        except SystemExit:
+            raise
+        except Exception as e:
+            abort(-20, f"Cannot read initial OOPByGNSS flag: {e}")
         log("INFO", f"OOPByGNSSInitialSts = {OOPByGNSSInitialSts}")
     else:
         log("INFO", "SET_VARIABLES skipped: ActionToPerformInFlight == NO")
 
-    # Step: CHECK_CEL
-    if bool_from_yesno(args.action_mask_inflight):
-        pv = get_param(processor, args.param_cel, from_cache=False, timeout=args.timeout)
+    # CHECK_CEL
+    if bool_from_yesno(a.action_mask_inflight):
+        cel = get_param(base, instance, processor, a.param_cel, token, a.timeout)
         try:
-            cel_num = int(pv_eng_value(pv))
+            cel_num = int(cel)
         except Exception:
             cel_num = None
         if cel_num is not None and cel_num != 0:
             log("WARN", "CEL counter is not equal to 0.")
             abort(-1000, "CEL != 0")
 
-    # Step: CHECK_GNSS_CONFIGURATION
-    if oop_update_by_gnss_enabled and not bool_from_yesno(args.gnss_presence):
+    # CHECK_GNSS_CONFIGURATION
+    if oop_update_by_gnss_enabled and not bool_from_yesno(a.gnss_presence):
         log("WARN", "No GNSS embedded on spacecraft. OOP cannot be updated by GNSS.")
         abort(-1000, "GNSS presence == NO")
 
-    # Step: CHECK_GNSS_STATUS
+    # CHECK_GNSS_STATUS
     if oop_update_by_gnss_enabled:
-        gnss1 = str(pv_eng_value(get_param(processor, args.param_gnss1_sts, from_cache=False, timeout=args.timeout)))
-        gnss2 = str(pv_eng_value(get_param(processor, args.param_gnss2_sts, from_cache=False, timeout=args.timeout)))
+        gnss1 = str(get_param(base, instance, processor, a.param_gnss1_sts, token, a.timeout))
+        gnss2 = str(get_param(base, instance, processor, a.param_gnss2_sts, token, a.timeout))
         if gnss1 != "OPERATIONAL" and gnss2 != "OPERATIONAL":
             log("WARN", "No GNSS is OPERATIONAL in SATCONF. Cannot use GNSS to update OOP.")
             abort(-1000, "GNSS both NOT OPERATIONAL")
 
-    # Step: CHECK_OOP_STATUS
-    pv = get_param(processor, args.param_oop_sts, from_cache=False, timeout=args.timeout)
-    oop_sts = str(pv_eng_value(pv))
+    # CHECK_OOP_STATUS
+    oop_sts = str(get_param(base, instance, processor, a.param_oop_sts, token, a.timeout))
     log("INFO", f"OOP_STS = {oop_sts}")
     FirstOOPUpdate = (oop_sts == "DISABLED")
     log("INFO", f"FirstOOPUpdate = {FirstOOPUpdate}")
 
     if FirstOOPUpdate:
-        OOPNewParamCheck_s_g = "OK"
-        log("INFO", f"OOPNewParamCheck = {OOPNewParamCheck_s_g}")
+        log("INFO", "OOPNewParamCheck = OK")
 
-    # Illegal combos (same as XML)
+    # Illegal combos (sama seperti XML)
     if oop_update_by_gnss_enabled and FirstOOPUpdate:
         abort(-1000, "OOP must be run before enabling update-by-GNSS")
-    if (not oop_update_by_gnss_enabled) and (args.enable_fdir == "ENABLED") and FirstOOPUpdate:
+    if (not oop_update_by_gnss_enabled) and (a.enable_fdir == "ENABLED") and FirstOOPUpdate:
         abort(-1000, "OOP must be run before enabling OOP FDIR")
 
     log("SUCCESS", "Procedure finished without abort conditions.")
