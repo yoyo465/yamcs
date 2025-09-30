@@ -100,17 +100,6 @@
       <Parameter name="Roll" parameterTypeRef="float_t"/>
       <Parameter name="Pitch" parameterTypeRef="float_t"/>
       <Parameter name="Yaw" parameterTypeRef="float_t"/>
-      <Parameter name="J2000" parameterTypeRef="float_t"/>
-      <Parameter name="Sun Vector X" parameterTypeRef="float_t"/>
-      <Parameter name="Sun Vector Y" parameterTypeRef="float_t"/>
-      <Parameter name="Sun Vector Z" parameterTypeRef="float_t"/>
-      <Parameter name="Angular Velocity X" parameterTypeRef="float_t"/>
-      <Parameter name="Angular Velocity Y" parameterTypeRef="float_t"/>
-      <Parameter name="Angular Velocity Z" parameterTypeRef="float_t"/>
-      <Parameter name="Magnetometer X" parameterTypeRef="float_t"/>
-      <Parameter name="Magnetometer Y" parameterTypeRef="float_t"/>
-      <Parameter name="Magnetometer Z" parameterTypeRef="float_t"/>
-      
     </ParameterSet>
 
     <ContainerSet>
@@ -140,17 +129,6 @@
           <ParameterRefEntry parameterRef="Roll"  bitOffset="216"/>
           <ParameterRefEntry parameterRef="Pitch"  bitOffset="248"/>
           <ParameterRefEntry parameterRef="Yaw"  bitOffset="280"/>
-          <ParameterRefEntry parameterRef="J2000"  bitOffset="312"/>
-          <ParameterRefEntry parameterRef="Sun Vector X"  bitOffset="344"/>
-          <ParameterRefEntry parameterRef="Sun Vector Y"  bitOffset="376"/>
-          <ParameterRefEntry parameterRef="Sun Vector Z"  bitOffset="408"/>
-          <ParameterRefEntry parameterRef="Angular Velocity X"  bitOffset="440"/>
-          <ParameterRefEntry parameterRef="Angular Velocity Y"  bitOffset="472"/>
-          <ParameterRefEntry parameterRef="Angular Velocity Z"  bitOffset="504"/>
-          <ParameterRefEntry parameterRef="Magnetometer X"  bitOffset="536"/>
-          <ParameterRefEntry parameterRef="Magnetometer Y"  bitOffset="568"/>
-          <ParameterRefEntry parameterRef="Magnetometer Z"  bitOffset="600"/>
-
         </EntryList>
       </SequenceContainer>
     </ContainerSet>
